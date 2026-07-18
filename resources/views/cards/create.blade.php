@@ -209,7 +209,8 @@
                         name="category_id">
                         <option value=""> カテゴリーなし </option>
                         @foreach ($groupedCategories->get(null, collect()) as $level1)
-                            <option value="{{ $level1->id }}" @selected((string) old('category_id', $card->category_id) === (string) $level1->id)> {{ $level1->name }}
+                            <option value="{{ $level1->id }}" @selected((string) old('category_id') === (string) $level1->id)>
+                                {{ $level1->name }}
                             </option>
                             @foreach ($groupedCategories->get($level1->id, collect()) as $level2)
                                 <option value="{{ $level2->id }}" @selected((string) old('category_id') === (string) $level2->id)> └ {{ $level2->name }}

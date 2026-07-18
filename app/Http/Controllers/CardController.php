@@ -167,7 +167,7 @@ class CardController extends Controller
                 ->url($backImagePath);
         }
 
-        $subject->cards()->create([
+        $card = $subject->cards()->create([
             'category_id' =>
                 $validated['category_id'] ?? null,
 

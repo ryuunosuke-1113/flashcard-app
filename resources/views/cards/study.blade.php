@@ -80,7 +80,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             min-height: 390px;
             padding: 32px;
             border: 2px solid #222;
@@ -88,7 +88,7 @@
             background: #fff;
             backface-visibility: hidden;
             -webkit-backface-visibility: hidden;
-            overflow: auto;
+            overflow: hidden;
         }
 
         .card-back {
@@ -433,12 +433,13 @@
             width: auto;
             max-width: 100%;
             height: auto;
-            max-height: 420px;
+            max-height: 240px;
             margin: 14px auto 0;
             object-fit: contain;
             border-radius: 10px;
             background: #fff;
             cursor: zoom-in;
+            flex-shrink: 1;
         }
 
         .study-card-image[hidden] {
@@ -520,6 +521,17 @@
             .flashcard,
             .mastery-button {
                 transition: none;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .study-card-image {
+                max-height: 180px;
+            }
+
+            .card-text {
+                font-size: clamp(20px, 7vw, 30px);
+                line-height: 1.4;
             }
         }
     </style>
