@@ -166,6 +166,37 @@
             color: #2e7d32;
         }
 
+        .clipboard-paste-button {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 13px 16px;
+            border: 1px solid #222;
+            border-radius: 9px;
+            background: #fff;
+            color: #222;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .clipboard-paste-button:hover,
+        .clipboard-paste-button:focus-visible {
+            background: #222;
+            color: #fff;
+        }
+
+        .clipboard-paste-button:disabled {
+            border-color: #aaa;
+            background: #ddd;
+            color: #777;
+            cursor: wait;
+        }
+
+        .clipboard-paste-button[hidden] {
+            display: none;
+        }
+
         @media (max-width: 520px) {
             body {
                 padding: 14px;
@@ -238,10 +269,14 @@
                     <input id="front_image" name="front_image" type="file" accept="image/*">
 
                     <div id="frontImagePasteArea" class="image-paste-area" tabindex="0" role="button"
-                        aria-label="表画像を貼り付ける">
-                        ここをクリックしてから、画像を貼り付けてください
+                        aria-label="表画像の貼り付けボタンを表示する">
+
+                        ここをタップすると、画像のペーストボタンが表示されます
                     </div>
 
+                    <button id="frontClipboardButton" class="clipboard-paste-button" type="button" hidden>
+                        📋 スクリーンショットをペースト
+                    </button>
                     <label class="image-color-option">
                         <input id="saveFrontImageInColor" type="checkbox">
                         カラーで保存する
@@ -278,9 +313,15 @@
 
                     <input id="back_image" name="back_image" type="file" accept="image/*">
 
-                    <textarea id="backImagePasteArea" class="image-paste-area" aria-label="裏画像を貼り付ける"
-                        placeholder="ここをクリックしてから、裏画像を貼り付けてください" readonly></textarea>
+                    <div id="backImagePasteArea" class="image-paste-area" tabindex="0" role="button"
+                        aria-label="裏画像の貼り付けボタンを表示する">
 
+                        ここをタップすると、画像のペーストボタンが表示されます
+                    </div>
+
+                    <button id="backClipboardButton" class="clipboard-paste-button" type="button" hidden>
+                        📋 スクリーンショットをペースト
+                    </button>
                     <label class="image-color-option">
                         <input id="saveBackImageInColor" type="checkbox">
                         カラーで保存する
@@ -510,6 +551,7 @@
             function initializeImageUploader({
                 inputId,
                 pasteAreaId,
+                clipboardButtonId,
                 messageId,
                 colorCheckboxId,
                 fallbackName,
@@ -522,7 +564,10 @@
                     document.getElementById(
                         pasteAreaId
                     );
-
+                const clipboardButton =
+                    document.getElementById(
+                        clipboardButtonId
+                    );
                 const message =
                     document.getElementById(
                         messageId
@@ -533,6 +578,7 @@
                         colorCheckboxId
                     );
 
+
                 /*
                  * 該当する画像欄がないページでは、
                  * 何もせず終了します。
@@ -540,12 +586,12 @@
                 if (
                     !imageInput ||
                     !pasteArea ||
+                    !clipboardButton ||
                     !message ||
                     !colorCheckbox
                 ) {
                     return null;
                 }
-
                 let originalImageFile = null;
 
                 async function processImage(file) {
@@ -717,9 +763,122 @@
                     'click',
                     () => {
                         pasteArea.focus();
+                        clipboardButton.hidden = false;
+
+                        message.textContent =
+                            '下の「スクリーンショットをペースト」をタップしてください。';
                     }
                 );
+                pasteArea.addEventListener(
+                    'keydown',
+                    (event) => {
+                        if (
+                            event.key !== 'Enter' &&
+                            event.key !== ' '
+                        ) {
+                            return;
+                        }
 
+                        event.preventDefault();
+                        clipboardButton.hidden = false;
+                        clipboardButton.focus();
+                    }
+                );
+                clipboardButton.addEventListener(
+                    'click',
+                    async () => {
+                        if (
+                            !navigator.clipboard ||
+                            typeof navigator.clipboard.read !== 'function'
+                        ) {
+                            message.textContent =
+                                'このブラウザではペーストボタンを利用できません。ファイル選択を利用してください。';
+
+                            return;
+                        }
+
+                        clipboardButton.disabled = true;
+                        message.textContent =
+                            '端末に「ペースト」が表示されたらタップしてください。';
+
+                        try {
+                            const clipboardItems =
+                                await navigator.clipboard.read();
+
+                            let imageBlob = null;
+                            let imageType = '';
+
+                            for (const clipboardItem of clipboardItems) {
+                                const type =
+                                    clipboardItem.types.find(
+                                        (itemType) =>
+                                        itemType.startsWith('image/')
+                                    );
+
+                                if (!type) {
+                                    continue;
+                                }
+
+                                imageBlob =
+                                    await clipboardItem.getType(type);
+
+                                imageType = type;
+                                break;
+                            }
+
+                            if (!imageBlob || !imageType) {
+                                message.textContent =
+                                    'クリップボードに画像が見つかりませんでした。先にスクリーンショットをコピーしてください。';
+
+                                return;
+                            }
+
+                            let extension =
+                                imageType.split('/')[1] || 'png';
+
+                            if (extension === 'jpeg') {
+                                extension = 'jpg';
+                            }
+
+                            originalImageFile =
+                                new File(
+                                    [imageBlob],
+                                    `${pastedNamePrefix}-${Date.now()}.${extension}`, {
+                                        type: imageType,
+                                        lastModified: Date.now(),
+                                    }
+                                );
+
+                            pasteArea.classList.add(
+                                'has-image'
+                            );
+
+                            setPasteAreaText(
+                                pasteArea,
+                                '画像を貼り付けました'
+                            );
+
+                            message.textContent =
+                                '貼り付けた画像を読み込みました。';
+
+                            await processImage(
+                                originalImageFile
+                            );
+                        } catch (error) {
+                            console.error(error);
+
+                            if (error.name === 'NotAllowedError') {
+                                message.textContent =
+                                    'ペーストが許可されませんでした。もう一度ボタンをタップし、表示された「ペースト」を選んでください。';
+                            } else {
+                                message.textContent =
+                                    '画像を貼り付けられませんでした。ファイル選択も利用できます。';
+                            }
+                        } finally {
+                            clipboardButton.disabled = false;
+                        }
+                    }
+                );
                 pasteArea.addEventListener(
                     'paste',
                     async (event) => {
@@ -804,12 +963,12 @@
                 initializeImageUploader({
                     inputId: 'front_image',
                     pasteAreaId: 'frontImagePasteArea',
+                    clipboardButtonId: 'frontClipboardButton',
                     messageId: 'frontImageMessage',
                     colorCheckboxId: 'saveFrontImageInColor',
                     fallbackName: 'front-image',
                     pastedNamePrefix: 'pasted-front',
                 });
-
             /*
              * 裏画像
              */
@@ -817,12 +976,12 @@
                 initializeImageUploader({
                     inputId: 'back_image',
                     pasteAreaId: 'backImagePasteArea',
+                    clipboardButtonId: 'backClipboardButton',
                     messageId: 'backImageMessage',
                     colorCheckboxId: 'saveBackImageInColor',
                     fallbackName: 'back-image',
                     pastedNamePrefix: 'pasted-back',
                 });
-
             cardForm.addEventListener(
                 'submit',
                 (event) => {
